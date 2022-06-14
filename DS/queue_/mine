@@ -1,0 +1,66 @@
+#include <iostream>
+#include <cstdio>
+#define MAX 10
+
+using namespace std;
+
+template<typename T>
+class QUEUE{
+    private :
+        int front;
+        int rear;
+        int size;
+        T* vs;
+
+    public :
+        QUEUE(){
+            size = MAX;
+            vs = new T[size];
+            front = 0;
+            rear = 0;
+        }
+
+        ~QUEUE(){
+            delete[] vs;
+        }
+
+        void push(T val){
+            if(!isfull()){
+                vs[rear] = val;
+                rear = (rear + 1) % size;
+            }
+            else{
+                return;
+            }
+        }
+
+        T pop(){
+            if(!empty()){
+                front = (front + 1) % size;
+            }
+            else return;
+            
+            return vs[front];
+        }
+
+        bool isfull(){
+            if((rear + 1) % size == front) return true;
+            else return false;
+        }
+
+        bool empty(){
+            if(rear == front) return true;
+            else return false;
+        }
+
+}
+
+int main(){
+
+    QUEUE<int> q();
+
+    q.push(1)
+    q.pop()
+
+    return 0;
+}
