@@ -87,7 +87,7 @@ int main()
 	q.pop();
 	cout << q;
 	q.pop();
-	cout << q;
+	cout << q; 
 	q.pop();
 	cout << q;
 	q.pop();
