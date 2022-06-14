@@ -1,0 +1,57 @@
+#include <iostream>
+#include <cstdio>
+
+#define MAX 10
+
+using namespace std;
+
+template<typename T>
+class STACK {
+private:
+    T* vals;
+    int top;
+
+    bool isfull() {
+        if (top == MAX) 
+            return true;
+        else return false;
+    }
+
+    bool empty() {
+        if (top == -1) 
+            return true;
+        else return false;
+    }
+
+public:
+    STACK() {
+        vals = new T[MAX];
+        top = -1;
+    }
+
+    ~STACK() {
+        delete[] vals;
+    }
+
+    void push(T val) {
+        if (isfull()) cout << "outofrange" << endl;
+        vals[++top] = val;
+    }
+
+    T pop() {
+        if (empty()) cout << "outofrange" << endl;
+        return vals[top--];
+    }
+};
+
+int main() {
+
+    STACK<int> sta;
+
+    sta.push(1);
+    int rtv = sta.pop();
+
+    cout << rtv;
+
+    return 0;
+}
