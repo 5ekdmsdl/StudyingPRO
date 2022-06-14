@@ -1,0 +1,82 @@
+#include <iostream>
+#include <cstdio>
+
+using namespace std;
+
+template<typename T>
+class HEAP{
+    private :
+        int _sz;
+        T *heapArr;
+
+        int max(int a, int b){
+            return a>b ? a:b;
+        }
+
+        void push_swap(int cur){
+            if(cur == 1){
+                return;
+            }
+
+            int par = cur / 2;
+            if(heapArr[par] < heapArr[cur]){
+                T tmp = heapArr[par];
+                heapArr[par] = heapArr[cur];
+                heapArr[cur] = tmp;
+                
+                push_swap(par);
+            }
+        }
+
+        void pop_swap(int cur){
+            int left, right, child;
+            
+            left = (cur*2 <= _sz ? cur*2:-1);
+            right = (cur*2+1 <= _sz ? cur*2+1:-1);
+
+            if(left == -1 && right == -1) child = -1;
+            else if(left != -1 && right == -1) child = left;
+            else child = (heapArr[left] > heapArr[right]? left : right);
+
+            if(child == -1) return;
+
+            if(heapArr[child] > heapArr[cur]){
+                T tmp = heapArr[child];
+                heapArr[child] = heapArr[cur];
+                heapArr[cur] = tmp;
+
+                pop_swap(child);
+            }
+        }
+
+    public :
+        HEAP(int n){
+            int _sz = 0;
+            heapArr = new int[n+1];
+        }
+        ~HEAP{
+            delete[] heapArr;
+        }
+
+        void push(int val){
+            heapArr[++_sz] = val;
+            push_swap(_sz);
+        }
+
+        void pop(){
+            heapArr[1] = heapArr[_sz--];
+            pop_swap(1);
+        }
+
+
+}
+
+int main(){
+
+    HEAP<int> h(10);
+
+    h.push(1);
+    h.pop();
+
+    return 0;
+}
