@@ -1,0 +1,105 @@
+#include<iostream>
+#include <vector>
+#include <unordered_map>
+
+#define rtotal 3
+
+using namespace std;
+
+int N, M;
+int n;
+
+unordered_map<char, int> Hexmap;
+list<int> Nlist;
+
+vector<int> Str2Arr(string line) {
+
+	vector<int> Arr;
+
+	for (auto ch : line) {
+		if (Hexmap.find(ch) == Hexmap.end()) {
+			auto n = ch - '0';
+			Arr.push_back(n);
+		}
+		else {
+			Arr.push_back(Hexmap.find(ch)->second);
+		}
+	}
+
+	return Arr;
+}
+
+int Hex2Dec(vector<int> v) {
+	int rtv = 0;
+
+	for (int i = 0; i < v.size();i++) {
+		rtv += v[i] * pow(16, v.size()-i-1);
+	}
+
+	return rtv;
+}
+
+list<int> getNs(vector<int> data, int sidx) {
+	list<int> Ns;
+
+	for (int i = 0; i < rtotal+1; i++) {
+
+		vector<int> vtmp;
+		for (int j = 0; j < n; j++) {
+			int n1 = data[(sidx + n * i + j) % N];
+			vtmp.push_back(n1);
+		}
+		int num = Hex2Dec(vtmp);
+		Ns.push_back(num);
+	}
+
+	return Ns;
+}
+
+int main(int argc, char** argv)
+{
+	{Hexmap.insert(make_pair('A', 10));
+	Hexmap.insert(make_pair('B', 11));
+	Hexmap.insert(make_pair('C', 12));
+	Hexmap.insert(make_pair('D', 13));
+	Hexmap.insert(make_pair('E', 14));
+	Hexmap.insert(make_pair('F', 15)); }
+
+	int test_case;
+	int T;
+
+	freopen("sample_input.txt", "r", stdin);
+	cin >> T;
+
+	for (test_case = 1; test_case <= T; ++test_case)
+	{
+		
+		string line;
+		Nlist = {};
+
+		cin >> N;
+		cin >> M;
+		cin >> line;
+
+		n = N / 4;
+		vector<int> data = Str2Arr(line);
+
+		for (int rcnt = 0; rcnt < rtotal+1; rcnt++) {
+			int sidx = rcnt;
+			list<int> Ns = getNs(data, sidx);
+
+			for (int n : Ns) {
+				Nlist.push_back(n);
+			}
+			
+		}
+		Nlist.unique();
+		Nlist.sort();
+
+		list<int>::iterator tmpitr = Nlist.begin();
+		for (int i = 0; i < (Nlist.size() - M ); i++) tmpitr++;
+
+		cout << *tmpitr << endl;
+	}
+	return 0;//정상종료시 반드시 0을 리턴해야합니다.
+}
