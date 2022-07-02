@@ -1,0 +1,289 @@
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
+#include <stdio.h>
+
+#define MAXN 	(50)
+#define MAXD	(11)
+
+struct Result
+{
+	int r, c;
+};
+
+extern void init(int N, int D, int mForest[MAXN][MAXN], int K);
+extern Result findCriminal();
+extern int useDetector(int P[MAXD][MAXD]);
+
+static const int dr[4] = { 0, -1, 0, 1 };
+static const int dc[4] = { -1,  0, 1, 0 };
+
+static unsigned long long mSeed;
+static int pseudo_rand()
+{
+	mSeed = (mSeed * 1103515245ULL + 12345) % 2147483647;
+	return (int)((mSeed >> 16) & 65535);
+}
+
+static int mForest[MAXN][MAXN];
+static bool visited[MAXN][MAXN];
+
+static int N, D;
+
+static int curR, curC, dir;
+static int callCount, callLimit;
+
+int useDetector(int P[MAXD][MAXD])
+{
+	int nr, nc;
+
+	if (callCount > callLimit) return 0;
+	callCount++;
+
+	while (true)
+	{
+		nr = (curR + dr[dir] + N) % N;
+		nc = (curC + dc[dir] + N) % N;
+
+		if (!visited[nr][nc])
+			break;
+
+		dir = (dir + 1) % 4;
+	}
+
+	curR = nr;
+	curC = nc;
+
+	visited[curR][curC] = true;
+
+	for (int r1 = curR - D / 2, r2 = 0; r2 < D; ++r1, ++r2)
+		for (int c1 = curC - D / 2, c2 = 0; c2 < D; ++c1, ++c2)
+			P[r2][c2] = mForest[(r1 + N) % N][(c1 + N) % N];
+
+	return 1;
+}
+
+static bool run()
+{
+	static int mForest_t[MAXN][MAXN];
+
+	int K, S;
+	scanf("%d %d %d %d", &N, &D, &K, &S);
+
+	mSeed = (unsigned long long)S;
+
+	for (int r = 0; r < N; ++r)
+		for (int c = 0; c < N; ++c)
+			mForest_t[r][c] = mForest[r][c] = pseudo_rand() % (D * D) == 0 ? 2 : 1;
+
+	init(N, D, mForest_t, K);
+
+	bool okay = true;
+
+	for (int i = 0; i < K; ++i)
+	{
+		scanf("%d", &callLimit);
+
+		callCount = 0;
+
+		curR = pseudo_rand() % N;
+		curC = pseudo_rand() % N;
+		dir = pseudo_rand() % 4;
+
+		for (int r = 0; r < N; ++r)
+			for (int c = 0; c < N; ++c)
+				visited[r][c] = false;
+
+		visited[curR][curC] = true;
+
+		Result res = findCriminal();
+		if (callCount > callLimit || res.r != curR || res.c != curC)
+			okay = false;
+	}
+
+	return okay;
+}
+
+int main()
+{
+	setbuf(stdout, NULL);
+	freopen("sample_input.txt", "r", stdin);
+
+	int T, MARK;
+	scanf("%d%d", &T, &MARK);
+
+	for (int tc = 1; tc <= T; ++tc)
+	{
+		int score = run() ? MARK : 0;
+		printf("#%d %d\n", tc, score);
+	}
+
+	return 0;
+}
+
+void init(int N, int D, int mForest[MAXN][MAXN], int K)
+{
+
+}
+
+bool checkBox(int i, int j, int Dmap[MAXD][MAXD]) {
+
+	for (int ii = 0; ii < D; ii++) {
+		for (int jj = 0; jj < D; jj++) {
+
+			int ni = (i - 1 + ii) % N;
+			int nj = (j - 1 + jj) % N;
+			if (ni > N) ni -= N;
+			else if (ni < 0) ni += N;
+			if (nj > N) nj -= N;
+			else if (nj < 0) nj += N;
+
+			if (Dmap[ii][jj] != mForest[ni][nj]) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void possibleRC(int Dmap[MAXD][MAXD], int Pmap[MAXN][MAXN]) {
+
+	for (int i = 0; i < N ; i++) {
+		for (int j = 0; j < N; j++) {
+			bool avail = checkBox(i,j,Dmap);
+
+			if (avail) {
+				Pmap[i][j] = 1;
+			}
+			else {
+				Pmap[i][j] = 0;
+			}
+		}
+	}
+	return;
+}
+
+void checkPmap(int Pmap[MAXN][MAXN], int prePmap[MAXN][MAXN], int predir[2]) {
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+
+			if (Pmap[i][j] == 1) {
+				bool possible = false;
+
+				for (int d = 0; d < 4; d++) {
+					int ni = (i + dr[d] + N) % N;
+					int nj = (j + dc[d] + N) % N;
+
+					if (prePmap[ni][nj] == 1) {
+						if (predir[0] == -1) {
+							possible = true;
+							break;
+						}
+						else {
+							int idir = (i - ni);
+							int jdir = (j - nj);
+
+							if((idir == predir[0] && jdir == predir[1]) or ())
+						}
+
+					}
+				}
+				if (!possible) {
+					Pmap[i][j] = 0;
+				}
+			}
+		}
+	}
+}
+
+Result findCriminal()
+{
+	Result res = {-1,-1};
+
+	int prePmap[MAXN][MAXN];
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			prePmap[i][j] = 1;
+		}
+	}
+	int Pmap[MAXN][MAXN];
+	int Dmap[MAXD][MAXD];
+
+	while (1) {
+		int running = useDetector(Dmap);
+		if (!running) break;
+
+		possibleRC(Dmap, Pmap);
+
+		checkPmap(Pmap, prePmap);
+
+		// copy map
+		{
+			int cnt = 0;
+			int oi = -1;
+			int oj = -1;
+			for (int i = 0; i < N; i++) {
+				for (int j = 0; j < N; j++) {
+					if (Pmap[i][j] == 1) {
+						oi = i;
+						oj = j;
+						cnt += 1;
+					}
+					prePmap[i][j] = Pmap[i][j];
+				}
+			}
+			if (cnt == 1) {
+				res = { oi,oj };
+				break;
+			}
+		} //copy map
+
+	}
+	
+
+/*	while (1) {
+		int running = useDetector(Dmap);
+
+		possibleRC(Dmap, Pmap);
+
+		for (int i = 0; i < N; i++) {
+			for (int j = 0; j < N; j++) {
+				if (Pmap[i][j] == 1) {
+					bool possible = false;
+
+					for (int d = 0; d < 4; d++) {
+						int ni = i + dr[d];
+						int nj = j + dc[d];
+						if (ni > N) ni -= N;
+						else if (ni < 0) ni += N;
+						if (nj > N) nj -= N;
+						else if (nj < 0) nj += N;
+
+						if (prePmap[ni][nj] == 1) {
+							possible = true;
+							break;
+						}
+					}
+					if (!possible) {
+						Pmap[i][j] = 0;
+					}
+				}
+			}
+		}
+
+		int cnt = 0;
+		for (int i = 0; i < N; i++) {
+			for (int j = 0; j < N; j++) {
+				if(Pmap[i][j] == 1) cnt += 1;
+				prePmap[i][j] = Pmap[i][j];
+			}
+		}
+		if (cnt == 1) break;
+		else if (cnt == 0) {
+			break;
+	*/	
+
+	return res;
+}
