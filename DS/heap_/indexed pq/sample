@@ -1,0 +1,113 @@
+#include <stdio.h>
+#include<random>
+
+#define MAXSZ 10
+
+struct node {
+	int idx = 0;
+	int val = 0;
+};
+
+struct priq {
+	node* root;
+	int sz = 0;
+};
+
+int hp_idx[MAXSZ];
+
+bool cmp(node d1, node d2) {
+	return (d1.val < d2.val);
+}
+
+void swap(node h[], int cidx, int pidx) {
+
+	node tmp = h[cidx];
+	h[cidx] = h[pidx];
+	h[pidx] = tmp;
+
+	return;
+}
+
+void heaptify_up(priq* pq, int cidx) {
+
+	node* hp = pq->root;
+
+	int pidx = (cidx) / 2;
+
+	if (cidx < 1) return;
+
+	if (hp[cidx].val < hp[pidx].val) {
+		swap(hp, cidx, pidx);
+		hp_idx[cidx] = pidx;
+		hp_idx[pidx] = cidx;
+	}
+	heaptify_up(pq, pidx);
+}
+
+void heap_push(priq* pq, int idx, int val) {
+	pq->root[pq->sz].idx = idx;
+	pq->root[pq->sz].val = val;
+
+	hp_idx[idx] = pq->sz;
+
+	heaptify_up(pq, pq->sz++);
+}
+
+void heaptify_down(priq* pq, int pidx) {
+
+	int minidx = pidx;
+	int lidx = pidx * 2 + 1;
+	int ridx = pidx * 2 + 2;
+
+	if (lidx < pq->sz && cmp(pq->root[lidx], pq->root[minidx])) {
+		minidx = lidx;
+	}
+	if (ridx < pq->sz && cmp(pq->root[ridx], pq->root[minidx])) {
+		minidx = ridx;
+	}
+
+	if (minidx != pidx) {
+		swap(pq->root, minidx, pidx);
+		hp_idx[minidx] = pidx;
+		hp_idx[pidx] = minidx;
+
+		heaptify_down(pq, minidx);
+	}
+
+	return;
+}
+
+node heap_pop(priq* pq) {
+
+	auto rtv = pq->root[0];
+
+	swap(pq->root, 0, (pq->sz)-1);
+	pq->sz--;
+
+	hp_idx[rtv.idx] = -1;
+	heaptify_down(pq, 0);
+
+	return rtv;
+}
+
+int main() {
+
+	struct priq* pq = new priq();
+
+	node hp[MAXSZ];
+	pq->root = hp;
+	pq->sz = 0;
+
+	priq* ptr = pq;
+
+	for (int i = 0; i < MAXSZ; i++) {
+		heap_push(pq, i, rand());
+	}
+
+	for (int i = 0; i < MAXSZ; i++) {
+		auto n = heap_pop(pq);
+		printf("%d, %d \n", n.idx, n.val);
+	}
+
+	return 1;
+}
