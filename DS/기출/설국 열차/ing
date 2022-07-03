@@ -1,0 +1,312 @@
+#include <unordered_map>
+#include <queue>
+#include <set>
+
+#define MAXN 100000
+
+using namespace std;
+
+struct idx {
+	int r = 0;
+	int i = 0;
+};
+
+struct node {
+	int nid;
+	int p;
+};
+
+struct priq {
+	node* root;
+	int sz = 0;
+};
+
+int* point;
+int* jid;
+unordered_map<int, vector<int>> jmap;
+
+priq train[10];
+idx* h_idx;
+node movingfront[10][5];
+node movingback[10][5];
+
+int N, M, J, R;
+
+void heaptify(int r, int i, int id);
+void heaptify_up(node* t, int cidx_i);
+void hp_push(int r, node  ntmp);
+
+
+void init(int iN, int iM, int iJ, int mPoint[], int mJobID[])
+{
+	N = iN, M = iM, J = iJ;
+	R = N / M;
+	point = mPoint;
+	jid = mJobID;
+
+	for (int i = 0; i < 10; i++) { 
+		node* tmp = new node[M];
+		train[i].root = tmp;
+		train[i].sz = 0; 
+		memset(movingfront[i], 0, sizeof(node)*5);
+		memset(movingback[i], 0, sizeof(node)*5);
+	}
+
+	jmap.clear();
+	h_idx = new idx[N]();
+
+	int id_cnt = 0;
+
+	for (int i = 0; i < R; i++) {
+
+		for (int j = 0; j < M; j++) {
+			
+			idx itmp;
+			itmp.r = i;
+			itmp.i = j;
+
+			node ntmp;
+			ntmp.nid = id_cnt;
+			ntmp.p = point[id_cnt];
+
+			h_idx[id_cnt] = itmp;
+			hp_push(i, ntmp);
+
+			id_cnt++;
+		}
+	}
+
+	for (int i = 0; i < N; i++) {
+		jmap[jid[i]].push_back(i);
+	}
+
+	return;
+}
+
+void destroy()
+{
+
+}
+
+int update(int mID, int mPoint)
+{
+	idx itmp = h_idx[mID];
+
+	train[itmp.r].root[itmp.i].p += mPoint;
+
+	heaptify(itmp.r, itmp.i, mID);
+
+	return train[h_idx[mID].r].root[h_idx[mID].i].p;
+}
+
+int updateByJob(int mJobID, int mPoint)
+{
+	int total = 0;
+	auto ids = jmap[mJobID];
+
+	for (auto id : ids) {
+		auto res = update(id, mPoint);
+		total += res;
+	}
+
+	return total;
+}
+
+void swap(node* hp, int i1, int i2) {
+	node tmp = hp[i1];
+	hp[i1] = hp[i2];
+	hp[i2] = tmp;
+
+	return;
+}
+
+void heaptify_up(node* t,int cidx_i) {
+	// sz 변화없이 윗방향 heap 유지
+	if (cidx_i < 1) return;
+
+	int pidx_i = (cidx_i - 1) / 2;
+
+	node* pnode = &(t[pidx_i]);
+	node* cnode = &(t[cidx_i]);
+
+	if (cnode->p > pnode->p) {
+
+		swap(t, pidx_i, cidx_i);
+
+		idx tmp = h_idx[pnode->nid];
+		h_idx[pnode->nid] = h_idx[cnode->nid];
+		h_idx[cnode->nid] = tmp;
+
+		heaptify_up(t, pidx_i);
+	}
+	else if (cnode->p == pnode->p && cnode->nid < pnode->nid) {
+
+		swap(t, pidx_i, cidx_i);
+
+		idx tmp = h_idx[pnode->nid];
+		h_idx[pnode->nid] = h_idx[cnode->nid];
+		h_idx[cnode->nid] = tmp;
+
+		heaptify_up(t, pidx_i);
+	}
+
+	return;
+}
+
+void heaptify_down(node* t, int sz,  int pidx ) {
+	// sz 변화없이 아래방향 heap 유지
+	int maxidx = pidx;
+	int lidx = (pidx *2) + 1;
+	int ridx = pidx * 2 + 2;
+
+	if (lidx < sz) {
+		if (t[lidx].p > t[maxidx].p) {
+			maxidx = lidx;
+		}
+		else if (t[lidx].p == t[maxidx].p && t[lidx].nid < t[maxidx].nid) {
+			maxidx = lidx;
+		}
+	}
+	if (ridx < sz) {
+		if(t[ridx].p > t[maxidx].p) {
+			maxidx = ridx;
+		}
+		else if (t[ridx].p == t[maxidx].p && t[ridx].nid < t[maxidx].nid) {
+			maxidx = ridx;
+		}
+	}
+
+	if (maxidx != pidx) {
+		node* mnode = &(t[maxidx]);
+		node* pnode = &(t[pidx]);
+
+		swap(t, maxidx, pidx);
+
+		idx tmp = h_idx[mnode->nid];
+		h_idx[mnode->nid] = h_idx[pnode->nid];
+		h_idx[pnode->nid] = tmp;
+
+		heaptify_down(t, sz, maxidx);
+	}
+
+	return;
+}
+
+void heaptify(int r, int i, int id) {
+	// 원소 값 변경 시 sz 변화 없이 heap 유지
+	heaptify_up(train[r].root, i);
+	heaptify_down(train[r].root, train[r].sz,i);
+}
+
+void hp_push(int r, node  ntmp) {
+
+	train[r].root[train[r].sz] = ntmp;
+	train[r].sz++;
+	heaptify_up(train[r].root, train[r].sz - 1);
+
+	return;
+}
+
+node hp_pop(int r) {
+	//  맨 앞 노드 빼고, sz 줄이기, heap 유지하기 
+	node* t = train[r].root;
+	
+	//  맨 앞 노드 빼고
+	node rtv = t[0];
+	// sz 줄이기
+	train[r].sz--;
+
+	swap(t, 0, train[r].sz);
+
+	idx tmp = h_idx[t[0].nid];
+	h_idx[t[0].nid] = h_idx[t[train[r].sz].nid];
+	h_idx[t[train[r].sz].nid] = tmp;
+	
+	// heap 유지하기
+	heaptify_down(t, train[r].sz, 0);
+
+	return rtv;
+}
+
+node hp_pop_back(int r) {
+	//  제일 작은 값 노드 빼고, sz 줄이기, heap 유지하기 
+	node* t = train[r].root;
+
+	int minp = t[0].p;
+	int mini = 0;
+	for (int i = 0; i < train[r].sz; i++) {
+		if (t[i].p < minp) {
+			minp = t[i].p;
+			mini = i;
+		}
+		else if (t[i].p == minp && t[i].nid > t[mini].nid) {
+			minp = t[i].p;
+			mini = i;
+		}
+	}
+	//  제일 작은 값 노드 빼고
+	node rtv = t[mini];
+	
+	// 맨 뒤 노드로 대체
+	swap(t, mini, train[r].sz-1);
+	idx tmp = h_idx[t[mini].nid];
+	h_idx[t[mini].nid] = h_idx[t[train[r].sz-1].nid];
+	h_idx[t[train[r].sz-1].nid] = tmp;
+
+	// sz 줄이기
+	train[r].sz--;
+
+	// heap 유지하기 
+	heaptify_down(t,train[r].sz,mini);
+
+	return rtv;
+}
+
+int move(int mNum)
+{
+	int total = 0;
+
+	for (int r = 0; r < R; r++) { //기차 호차
+		for (int m = 0; m < mNum; m++) { // 움직이는 사람
+			if (r != 0) {
+				node peo = hp_pop(r);
+				movingfront[r][m] = peo;
+			}
+
+			if (r != R - 1) {
+				node bpeo = hp_pop_back(r);
+				movingback[r][m] = bpeo;
+			}
+		}
+	}
+
+	for (int r = 0; r < R; r++) {
+
+		node* mf = movingfront[r];
+		node* mb = movingback[r];
+
+		for (int m = 0; m < mNum;m++) {
+			if(r != 0) {
+				// r-1 로
+				h_idx[mf[m].nid].r = r-1;
+				h_idx[mf[m].nid].i = train[r - 1].sz;
+				total += mf[m].p;
+
+				hp_push(r - 1, mf[m]);
+			}
+
+			if(r != R-1) {
+				// r+1 로
+				h_idx[mb[m].nid].r =  r+1;
+				h_idx[mb[m].nid].i = train[r + 1].sz;
+				total += mb[m].p;
+
+				hp_push(r + 1, mb[m] );
+			}
+		}
+	}
+
+	
+
+	return total;
+}
