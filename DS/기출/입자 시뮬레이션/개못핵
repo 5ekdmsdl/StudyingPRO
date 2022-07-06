@@ -1,0 +1,288 @@
+#include <map>
+#include <set>
+#include <math.h>
+#include <vector>
+
+#define maxid 50000
+
+using namespace std;
+
+int L, R, N;
+
+struct pos {
+	int x = -1;
+	int y = -1;
+	int z = -1;
+
+	pos() :x(-1), y(-1), z(-1) {}
+
+	pos(int mPx, int mPy, int mPz) : x(mPx), y(mPy), z(mPz) {}
+};
+
+struct vel {
+	int x = -1;
+	int y = -1;
+	int z = -1;
+
+	vel() :x(-1), y(-1), z(-1) {}
+
+	vel(int mVx, int mVy, int mVz) : x(mVx), y(mVy), z(mVz) {}
+};
+
+struct posvec
+{
+	pos p;
+	vel v;
+
+	posvec() {
+		pos ptmp;
+		vel vtmp;
+		this->p = ptmp;
+		this->v = vtmp;
+	}
+
+	posvec(pos p, vel v) {
+		this->p = p;
+		this->v = v;
+	}
+};
+
+struct RN
+{
+	int x = -1;
+	int y = -1;
+	int z = -1;
+
+	RN() : x(-1), y(-1), z(-1) {}
+
+	RN(pos p) {
+		x = (p.x + L) / R;
+		y = (p.y + L) / R;
+		z = (p.z + L) / R;
+	}
+};
+
+int pDB[maxid][1000]; // idx -> ids
+int pcnt[maxid]; // pDB : idx -> ids cnt
+int id2rDB[maxid]; // id -> idx
+struct posvec DB[maxid]; // id -> data
+
+set<int> aidxs;
+set<int> done;
+
+// RN -> idx
+int getidx(RN RNtmp) {
+	return RNtmp.x * N * N + RNtmp.y * N + RNtmp.z;
+}
+
+int getdist(pos p1, pos p2) {
+	return pow((p1.x - p2.x), 2) + pow((p1.y - p2.y), 2) + pow((p1.z - p2.z), 2);
+}
+
+bool notinrange(int n) {
+	return (0 > n) || (n > N + 1);
+}
+
+void pvmove(struct posvec* pv) {
+	pv->p.x += pv->v.x;
+	pv->p.y += pv->v.y;
+	pv->p.z += pv->v.z;
+
+	pos* p = &(pv->p);
+	vel* v = &(pv->v);
+
+	if (p->x >= L) {
+		p->x = 2 * L - p->x;
+		v->x *= -1;
+	}
+	else if (p->x <= -L) {
+		p->x = -2 * L - p->x;
+		v->x *= -1;
+	}
+
+	if (p->y >= L) {
+		p->y = 2 * L - p->y;
+		v->y *= -1;
+	}
+	else if (p->y <= -L) {
+		p->y = -2 * L - p->y;
+		v->y *= -1;
+	}
+
+	if (p->z >= L) {
+		p->z = 2 * L - p->z;
+		v->z *= -1;
+	}
+	else if (p->z <= -L) {
+		p->z = -2 * L - p->z;
+		v->z *= -1;
+	}
+}
+
+////////////////////////////////////////
+
+void init(int iL, int iR)
+{
+	L = iL, R = iR;
+	N = L / R * 2;
+
+	for (int i = 0; i < maxid; i++) {
+		id2rDB[i] = -1;
+		DB[i] = posvec();
+	}
+
+	memset(pDB, 0, sizeof(pDB));
+	memset(pcnt,0,sizeof(pcnt));
+	done.clear();
+	aidxs.clear();
+
+	return;
+}
+
+void insertParticle(int mID, int mPx, int mPy, int mPz, int mVx, int mVy, int mVz)
+{
+	pos ptmp(mPx, mPy, mPz);
+	vel vtmp(mVx, mVy, mVz);
+	struct posvec dtmp(ptmp, vtmp);
+
+	RN RNtmp(ptmp);
+	int idx = getidx(RNtmp);
+
+	pDB[idx][pcnt[idx]] = (mID);
+	pcnt[idx]++;
+
+	aidxs.insert(idx);
+
+	id2rDB[mID] = idx;
+
+	DB[mID] = dtmp;
+
+	return;
+}
+
+void removeParticle(int mID)
+{
+	int idx = id2rDB[mID];
+
+	
+	vector<int>::iterator itmp;
+
+	for (int i = 0; i < pcnt[idx]; i++) {
+
+		int id = pDB[idx][i];
+
+		if (id == mID) { 
+
+			for (int j = i; j < pcnt[idx]; j++) {
+				pDB[idx][j] = pDB[idx][j + 1];
+			}
+
+			pcnt[idx]--;
+		}
+	}
+
+	if (pcnt[idx] == 0) {
+		aidxs.erase(idx);
+	}
+
+	id2rDB[mID] = -1;
+	DB[mID] = posvec();
+
+	return;
+}
+
+int findNearParticle(int mID)
+{
+	int total = 0;
+
+	int idx = id2rDB[mID];
+	RN cRN(DB[mID].p);
+
+	struct posvec pivot = DB[mID];
+
+	for (register int dx = -1; dx < 2; dx++) {
+		for (register int dy = -1; dy < 2; dy++) {
+			for (register int dz = -1; dz < 2; dz++) {
+
+				RN nRN = cRN;
+				nRN.x += dx; nRN.y += dy; nRN.z += dz;
+
+				if (notinrange(nRN.x) || notinrange(nRN.y) || notinrange(nRN.z)) continue;
+
+				auto idmap = pDB[getidx(nRN)];
+				int sz = pcnt[getidx(nRN)];
+
+				for (int i = 0; i < sz;i++) { //id
+
+					int id = idmap[i];
+
+					if (id == mID) continue;
+
+					int dist = getdist(DB[id].p, pivot.p);
+
+					if (dist <= R * R) {
+						total += id;
+					}
+				}
+
+			}
+		}
+	}
+
+	return total;
+}
+
+void update(int idx, int pdb[]) {
+
+	int db[maxid];
+
+	memcpy(db,pdb,sizeof(db));
+	memset(pdb, -1, sizeof(pdb));
+	pcnt[idx] = 0;
+
+	aidxs.erase(idx);
+
+	for (int i = 0; i < pcnt[idx];i++) {
+
+		int id = db[i];
+
+		if (done.find(id) != done.end()) {
+			pdb[pcnt[idx]] = id;
+			pcnt[idx]++;
+
+			continue;
+		}
+
+		struct posvec* pv = &(DB[id]);
+
+		pvmove(pv);
+
+		insertParticle(id, pv->p.x, pv->p.y, pv->p.z, pv->v.x, pv->v.y, pv->v.z);
+
+		done.insert(id);
+	}
+
+	if (!(pcnt[idx] == 0)) aidxs.insert(idx);
+
+	return;
+}
+
+void go(int mTick)
+{
+	vector<int> c_aidxs;
+
+	for (register int t = 0; t < mTick; t++) {
+		
+		for (auto i : aidxs) {
+			c_aidxs.push_back(i);
+		}
+
+		done = {};
+		
+		for (auto idx : c_aidxs) {
+			update(idx, pDB[idx]);
+		}
+	}
+
+	return;
+}
