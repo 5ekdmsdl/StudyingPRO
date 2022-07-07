@@ -1,0 +1,278 @@
+#include <map>
+#include <string>
+#include <vector>
+#include <cstring>
+
+#define maxN 25
+#define NAMELEN 11
+#define mii map<int, int>
+#define miv map<int, vector<int>>
+
+using namespace std;
+int ffind(int id);
+
+struct Area
+{
+	//char* name;
+	int id;
+	int n;
+	int x;
+	int y;
+
+	void init( int _id, int _n, int _x, int _y) {
+		//name = _name;
+		id = _id;
+		n = _n;
+		x = _x;
+		y = _y;
+	}
+};
+
+int N;
+
+Area DB[maxN][maxN]; // xy -> data
+int root[maxN * maxN]; // id -> root id
+miv ene_map;
+map<string, int> Monid; // string -> id
+int mcnt = 0;
+
+void updateEmap() {
+
+	miv nmap;
+
+	for (auto itr = ene_map.begin(); itr != ene_map.end(); itr++) {
+		int id = itr->first;
+		vector<int> list = itr->second;
+
+		if (nmap.find(ffind(id)) != nmap.end()) {
+			for (int d : list) {
+				nmap[ffind(id)].push_back(d);
+			}
+		}
+		else {
+			nmap[ffind(id)] = list;
+		}
+	}
+
+	ene_map = nmap;
+}
+
+bool notinrange(int n) {
+	return (n < 0) || (N - 1 < n);
+}
+
+int ffind(int id) {
+	if (root[id] == id) return id;
+	return root[id] = ffind(root[id]);
+}
+
+bool is_allay(int idA, int idB) {
+
+	int r1 = ffind(idA);
+	int r2 = ffind(idB);
+
+	if (r1 == r2) return true;
+
+	return false;
+}
+
+bool is_enemy(int idA, int idB) {
+
+	int r1 = ffind(idA);
+	int r2 = ffind(idB);
+
+	if (!ene_map.empty()) updateEmap();
+	else return false;
+
+	if (ene_map.find(r1) == ene_map.end()) return false;
+
+	auto vec = ene_map[r1];
+
+	for (int id : vec) {
+		if (ffind(id) == r2) return true;
+	}
+
+	return false;
+}
+
+bool is_near(int idA, int idB) {
+
+	int xB = -1, yB = -1;
+
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			if (DB[i][j].id == idB) {
+				xB = i;
+				yB = j;
+				break;
+			}
+		}
+	}
+
+	int dx[] = { 0,0,1,1,1,-1,-1,-1 };
+	int dy[] = { -1,1,0,1,-1,0,1,-1 };
+
+	for (int i = 0; i < 8; i++) {
+		int nx = xB + dx[i];
+		int ny = yB + dy[i];
+
+		if (notinrange(nx) || notinrange(ny)) continue;
+
+		if (ffind(DB[nx][ny].id) == ffind(idA)) {
+			return true;
+		}
+	}
+	return false;
+
+}
+
+///////////////////////////////////////////////
+
+void init(int N, int mSoldier[25][25], char mMonarch[25][25][11])
+{
+	memset(root, -1, maxN * maxN); // root
+
+	ene_map.clear(); // ene_map
+	Monid.clear(); // Monid
+
+	::N = N; // N
+
+	mcnt = 0; // mcnt
+
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			DB[i][j].init( mcnt, mSoldier[i][j], i, j); // DB
+
+			Monid[mMonarch[i][j]] = mcnt;
+			root[mcnt] = mcnt;
+
+			mcnt++;
+		}
+	}
+
+	return;
+}
+
+void destroy()
+{
+
+}
+
+int ally(char mMonarchA[11], char mMonarchB[11])
+{
+	int idA = Monid[mMonarchA];
+	int idB = Monid[mMonarchB];
+
+	if (idA == idB || is_allay(idA, idB)) return -1;
+	else if (is_enemy(idA, idB)) return -2;
+
+	root[ffind(idA)] = ffind(idB);
+
+	return 1;
+}
+
+int attack(char mMonarchA[11], char mMonarchB[11], char mGeneral[11])
+{
+	int idA = Monid[mMonarchA];
+	int idB = Monid[mMonarchB];
+
+	if (is_allay(idA, idB)) return -1;
+	else if (!is_near(idA, idB)) return -2;
+
+	// 적대관계처리
+	ene_map[ffind(idA)].push_back(ffind(idB));
+	ene_map[ffind(idB)].push_back(ffind(idA));
+
+	int xA = -1, yA = -1;
+	int xB = -1, yB = -1;
+
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			if (DB[i][j].id == idA) {
+				xA = i;
+				yA = j;
+			}
+			if (DB[i][j].id == idB) {
+				xB = i;
+				yB = j;
+			}
+
+			if (xA != -1 && yA != -1 && xB != -1 && yB != -1) break;
+		}
+	}
+
+	int dx[] = { 0,0,1,1,1,-1,-1,-1 };
+	int dy[] = { -1,1,0,1,-1,0,1,-1 };
+
+	int A = 0;
+	int D = DB[xB][yB].n;
+	DB[xB][yB].n = 0;
+
+	for (int i = 0; i < 8; i++) {
+		int nx = xB + dx[i];
+		int ny = yB + dy[i];
+
+		if (ffind(DB[nx][ny].id) == ffind(idA)) {
+			int p = DB[nx][ny].n / 2;
+			DB[nx][ny].n -= p;
+			A += p;
+		}
+		else if (ffind(DB[nx][ny].id) == ffind(idB)) {
+			int p = DB[nx][ny].n / 2;
+			DB[nx][ny].n -= p;
+			D += p;
+		}
+	}
+
+	A -= D;
+
+	if (A > 0) { // 성공
+		char tmp[11];
+		strcpy(tmp, mGeneral);
+		Monid[tmp] = mcnt;
+
+		DB[xB][yB].init(mcnt, 0, xB, yB);
+		root[mcnt] = ffind(idA);
+		mcnt++;
+		
+		DB[xB][yB].n += A;
+
+		return 1;
+	}
+	else { // 실패
+		DB[xB][yB].n += -A;
+
+		return 0;
+	}
+}
+
+int recruit(char mMonarch[11], int mNum, int mOption)
+{
+	int id = Monid[mMonarch];
+	int total = 0;
+
+	if (mOption == 0) {
+		for (int i = 0; i < N; i++) {
+			for (int j = 0; j < N; j++) {
+				if (DB[i][j].id == id) {
+					DB[i][j].n += mNum;
+					total += DB[i][j].n;
+					break;
+				}
+			}
+		}
+	}
+	else {
+		int tid = ffind(id);
+		for (int i = 0; i < N; i++) {
+			for (int j = 0; j < N; j++) {
+				if (ffind(DB[i][j].id) == tid) {
+					DB[i][j].n += mNum;
+					total += DB[i][j].n;
+				}
+			}
+		}
+	}
+
+	return total;
+}
