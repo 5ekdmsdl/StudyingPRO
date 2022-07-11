@@ -1,0 +1,198 @@
+#include <cstring>
+#include <algorithm>
+#include <vector>
+#include <queue>
+
+#define MAX_N 100
+
+using namespace std;
+
+int dx[4] = { 0,0,-1,1 };
+int dy[4] = { -1, 1, 0, 0 };
+
+struct xy {
+    int x; int y;
+    xy(int _x, int _y) : x(_x), y(_y) {}
+};
+
+int n;
+int type[MAX_N][MAX_N];
+int D[MAX_N][MAX_N];
+bool act[MAX_N][MAX_N];
+
+vector<xy> alist;
+
+struct cmp {
+    //    - 우선 순위 :
+   //1) 셀의 에너지 소비량이 높을수록
+   //2) 행의 번호가 작은 셀
+   //3)열의 번호가 작은 셀
+    bool operator()(xy a, xy b) {
+        if (D[a.x][a.y] == D[b.x][b.y]) {
+            if (a.x == b.x) {
+                return a.y > b.y; // 열의 번호가 작은 셀
+            }
+            else return a.x > b.x; // 행의 번호가 작은 셀
+        }
+        else return D[a.x][a.y] < D[b.x][b.y]; // 셀의 에너지 소비량이 높을수록
+    }
+};
+
+bool notinrange(int v) { return (0 > v) || (v > n - 1); }
+
+void activate(int x, int y) {
+    
+    act[x][y] = true;
+    alist.push_back(xy(x, y));
+
+    //    2) 상하좌우로 연결된 같은 종류의 세균들을 모두 활성화 : bfs
+    for (int d = 0; d < 4; d++) {
+        int nx = x + dx[d], ny = y + dy[d];
+
+        if (notinrange(nx) || notinrange(ny)) continue;
+
+        if (!act[nx][ny] && type[nx][ny] == type[x][y]) activate(nx, ny);
+    }
+}
+
+void deactivate() {
+    memset(act, false, MAX_N * MAX_N);
+    alist.clear();
+}
+
+////////////////////////////////////////////////
+
+void init(int N, int mDish[MAX_N][MAX_N])
+{
+    // 위치 (row, col)로 주어지는 셀의 “에너지 소비량”은 mDish[row-1][col-1]
+    n = N;
+    memcpy(D, mDish, MAX_N * MAX_N);
+    memset(type, 0, MAX_N * MAX_N);
+    memset(act, 0, MAX_N * MAX_N);
+
+    alist.clear();
+
+    return;
+}
+
+int dropMedicine(int mTarget, int mRow, int mCol, int mEnergy)
+{
+    mRow -= 1; mCol -= 1;
+
+    //[1단계] 생성 약품 떨어뜨리기
+    // mEnergy : 번식 에너지의 양 (3 ≤ mEnergy ≤ 200)
+
+    //    1 - 1) 셀이 비어 있으면
+    //    동일한 종류 세균 생성->활성화
+    if (type[mRow][mCol] == 0) {
+        type[mRow][mCol] = mTarget;
+        activate(mRow, mCol);
+        //    이때 해당 셀의 에너지 소비량만큼 번식 에너지를 소비한다.
+        //    번식 에너지보다 소비량이 더 크면 번식 에너지의 남은 양은 0이 된다.
+        mEnergy = max(mEnergy - D[mRow][mCol], 0);
+    }
+
+    //    1 - 2) 같은 종류의 세균->활성화.
+    else if (type[mRow][mCol] == mTarget) {
+        activate(mRow, mCol);
+    }
+
+    //    1 - 3) 다른 종류->다음 단계로 넘어가지 않고 종료
+    else {
+        int tot = 0;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (type[i][j] == mTarget) tot += 1;
+            }
+        }
+        return tot;
+    }
+
+    //    [2단계] 번식 에너지를 이용한 번식
+    while (1) {
+        //    1) 번식 에너지가 0인 경우  -> 3단계
+        if (mEnergy <= 0) break;
+
+        priority_queue<xy, vector<xy>, cmp> q; // 번식 가능한 위치
+
+        //    2) 번식 에너지가 존재-> 활성화된 세균들의 번식 가능한 위치들을 모두 찾는다.
+        for (xy p : alist) {
+            for (int i = 0; i < 4; i++) {
+                int nx = p.x + dx[i], ny = p.y + dy[i];
+
+                if (notinrange(nx) || notinrange(ny)) continue;
+
+                if (type[nx][ny] == 0) {
+                    q.push(xy(nx, ny));
+                }
+            }
+        }
+
+        //    3) 번식 가능한 위치가 하나도 없는 경우 3단계
+        if (q.size() == 0) { 
+            //printf("error 1");
+            break; 
+        }
+
+        //    4) 번식 가능한 위치들 중 우선순위가 가장 높은 위치 
+        // 동일한 종류의 세균이 생성->활성화
+        xy p = q.top();
+        type[p.x][p.y] = mTarget;
+        activate(p.x, p.y);
+
+        // 해당 셀의 에너지 소비량만큼 번식 에너지를 소비
+        // 번식 에너지보다 소비량이 더 크면 번식 에너지의 남은 양은 0
+        mEnergy = max(mEnergy - D[p.x][p.y], 0);
+
+        //    5) 세균 생성 후 활성화된 세균들은 상하좌우로 연결된 같은 종류의 세균들을 모두 활성화 : bfs
+        //    6) 1)번부터 되풀이
+    }
+
+    deactivate();
+
+    //    Return : 번식 끝난 후, 접시 내의 종류가 mTarget인 세균의 총 개수
+    int tot = 0;
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (type[i][j] == mTarget) tot += 1;
+        }
+    }
+
+    return tot;
+}
+
+int cleanBacteria(int mRow, int mCol)
+{
+    mRow -= 1; mCol -= 1;
+    //소멸 약품을 접시의 특정 위치(mRow, mCol)에 떨어뜨리면 세균의 소멸이 진행된다.
+
+    //    1 - 1) 약품이 떨어진 셀이 비어있는 경우
+    //    세균의 소멸은 진행되지 않고 완료된다.
+    if (type[mRow][mCol] == 0) {
+        return -1;
+    }
+
+    //    1 - 2) 약품이 떨어진 셀에 세균이 존재
+    //    해당 세균은 활성화
+    int mTarget = type[mRow][mCol];
+    activate(mRow, mCol);
+
+    //    3) 활성화된 세균들은 모두 소멸
+    for (xy p : alist) {
+        type[p.x][p.y] = 0;
+    }
+    
+    deactivate();
+
+    //    Return : 소멸된 세균과 같은 종류의 살아있는 세균들의 총 개수(소멸된 세균이 없는 경우 - 1)
+    
+    int tot = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (type[i][j] == mTarget) tot += 1;
+        }
+    }
+
+    return tot;
+}
