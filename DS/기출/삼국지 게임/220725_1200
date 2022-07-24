@@ -1,0 +1,303 @@
+#include <string>
+#include <unordered_map>
+#include <set>
+
+#define MSZ 25
+#define PMAX 8000 // 총 몇개의 id가 있을 수 있는가
+
+using namespace std;
+
+struct mdata {
+	int id;
+	int n;
+
+	mdata() : id(-1), n(-1) {}
+};
+
+struct idx
+{
+	int x = -1; int y = -1;
+
+	idx() : x(-1), y(-1) {}
+	idx(int _x, int _y) {
+		x = _x;
+		y = _y;
+	}
+};
+
+class allyhostile { // 동맹만 관리
+
+public : 
+	int atable[PMAX]; // id 별 동맹
+	int apri[PMAX]; // id 별 동맹 내 순위 (클수록 좋은거)
+
+	vector<int> htable[PMAX]; // id 별 적인 곳들 (두목 아니어도 됨)
+
+	allyhostile() {
+		for (int i = 0; i < PMAX; i++) {
+			atable[i] = i;
+		}
+		memset(htable, -1, sizeof(htable));
+	}
+
+	void init() {
+		for (int i = 0; i < PMAX; i++) {
+			atable[i] = i;
+		}
+		memset(htable, -1, sizeof(htable));
+	}
+
+	bool isally(int A, int B) {
+		return atable[A] == atable[B];
+	}
+
+	bool ishostile(int A, int B) {
+
+		for (int hid : htable[A]) {
+			if (isally(hid, B)) return true;
+		}
+
+		return false;
+	}
+
+	void ally(int A, int B) {
+
+		apri[A]++; apri[B]++;
+
+		if (apri[A] < apri[B]) { // B가 순위가 높으면
+			atable[A] = atable[B];
+		}
+		else { // A가 높거나 같으면
+			atable[B] = atable[A];
+
+			if (apri[A] == apri[B]) apri[A]++;
+		}
+		return;
+	}
+
+	void hostile(int A, int B) {
+		htable[A].push_back(B);
+	}
+};
+
+unordered_map<string, int> idmap; // string name -> int id
+int icnt = 0;
+
+allyhostile ah;
+
+class map { // 자원만 관리
+
+public:
+	int N;
+	mdata table[MSZ][MSZ]; // 각 idx 별 data
+	unordered_map<int, idx> id2idx;
+
+	int dx[8] = { 0,0,-1,-1,-1,1,1,1 };
+	int dy[8] = { -1,1,0,-1,1,0, -1,1 };
+
+	map() {
+		N = -1;
+		memset(table, -1, sizeof(table));
+	}
+
+	void set(int i, int j, int id, int n) {
+		table[i][j].id = id;
+		table[i][j].n = n;
+		id2idx[id] = idx(i, j);
+	}
+
+	bool isnear(int A, int B) { // A 의 동맹 영토가 B 의 영토와 인접한지
+		idx idxA = id2idx[A];
+		idx idxB = id2idx[B]; // target
+
+		for (int i = 0; i < 8; i++) {
+			int nx = idxB.x + dx[i];
+			int ny = idxB.y + dy[i];
+
+			if (ah.isally(table[nx][ny].id, table[idxA.x][idxA.y].id)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	int getally(int p, int t) { // p 중심으로 t의 동맹 찾기
+		idx idxp = id2idx[p];
+		idx idxt = id2idx[t]; // target
+
+		int sum = 0;
+
+		for (int i = 0; i < 8; i++) {
+			int nx = idxp.x + dx[i];
+			int ny = idxp.y + dy[i];
+
+			if (ah.isally(table[nx][ny].id, table[idxt.x][idxt.y].id)) { // 동맹이라면
+				// 절반 제공
+				//	보내는 병사 계산시 소수점은 버린다.
+				int nn = table[nx][ny].n / 2;
+				table[nx][ny].n -= nn;
+				sum += nn;
+			}
+		}
+
+		return sum;
+	}
+
+	int getn(int id) {
+		idx itmp = id2idx[id];
+		return table[itmp.x][itmp.y].n;
+	}
+
+	void reset(int id, int nid, int n) {
+		idx itmp = id2idx[id];
+		table[itmp.x][itmp.y].id = nid;
+		table[itmp.x][itmp.y].n = n;
+	}
+
+	int recruit(int id, int n) {
+		idx itmp = id2idx[id];
+		table[itmp.x][itmp.y].n += n;
+		return table[itmp.x][itmp.y].n;
+	}
+
+	int recruitall(int id, int n) {
+		int sum = 0;
+		for (int i = 0; i < N; i++) {
+			for (int j = 0; j < N; j++) {
+				if (ah.isally(table[i][j].id, id)) {
+					sum += recruit(table[i][j].id, n);
+				}
+			}
+		}
+		return sum;
+	}
+};
+
+map m;
+
+void init(int N, int mSoldier[25][25], char mMonarch[25][25][11])
+{
+	//각 테스트 케이스의 처음에 호출된다.
+	//	전체 영토는 N x N의 격자 모양으로 이루어져 있다.
+
+	//	mSoldier 은 각 영토의 병사의 수이다.
+	//	mMonarch 는 각 영토의 군주 이름이다.
+
+	//	초기에는 모든 군주들은 동맹관계도 적대관계도 없다.
+
+	idmap.clear();
+
+	m.N = N;
+
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			idmap[mMonarch[i][j]] = icnt;
+			m.set(i, j, icnt, mSoldier[i][j]);
+			icnt++;
+		}
+	}
+
+	ah.init();
+
+	return;
+}
+
+void destroy()
+{
+	//  각 테스트 케이스의 마지막에 호출된다.
+
+	//	빈 함수로 두어도 채점에는 영향을 주지 않는다.
+}
+
+int ally(char mMonarchA[11], char mMonarchB[11])
+{
+	// 군주 mMonarchA 의 동맹들이 군주 mMonarchB 의 동맹들과 동맹을 맺는다.
+	int idA = idmap[mMonarchA];
+	int idB = idmap[mMonarchB];
+
+
+	//	군주 mMonarchA 와 군주 mMonarchB 가 동일 하거나 이미 동맹관계이면 - 1을 반환한다.
+	if (ah.isally(idA, idB)) return -1;
+
+	//	군주 mMonarchA 의 동맹과 군주 mMonarchB 의 동맹 간에 적대관계가 있으면 - 2를 반환한다.
+	if (ah.ishostile(idA, idB)) return -2;
+
+	//	위의 두 경우가 아닌 경우 동맹관계가 맺어지고, 1을 반환한다.
+	ah.ally(idA, idB);
+
+	return 1;
+}
+
+int attack(char mMonarchA[11], char mMonarchB[11], char mGeneral[11])
+{	
+	//  군주 mMonarchA 와 동맹들이 군주 mMonarchB 의 영토를 공격한다
+	//	공격을 지휘하는 장수는 mGeneral 이다
+	int idA = idmap[mMonarchA];
+	int idB = idmap[mMonarchB];
+	int idG = idmap[mGeneral];
+
+	//	군주 mMonarchA 와 군주 mMonarchB 가 동맹관계 이면 - 1을 반환
+	if (ah.isally(idA, idB)) return -1;
+
+	//	군주 mMonarchA 의 영토 또는 동맹 영토가 군주 mMonarchB 의 영토와 인접하지 않다면 - 2을 반환
+	if (m.isnear(idA, idB)) return -2;
+
+	//	전투가 발생하면 군주 mMonarchA 의 동맹과 군주 mMonarchB 의 동맹은 서로 적대관계가 된다.
+	ah.hostile(idA, idB);
+
+	//	B 의 영토에 인접한 A 를 포함한 모든 동맹들은 병사 절반 공격
+	//  B 의 영토에 인접한 B 의 모든 동맹들도 병사의 절반을 방어
+	int nA = m.getally(idB, idA);
+	int nB = m.getally(idB, idB) + m.getn(idB);
+	
+	//	공격하는 병사의 수가 0명이라도 전투가 발생한 것이다.
+	//	전투 시 병사들은 상대 병사와 1:1로 싸워 함께 전사한다.
+
+	//	전투의 결과는 남은 병사로 결정한다.
+	int res = nA - nB;
+	
+	if (res > 0) {  //	공격하는 쪽의 병사가 남았다면
+		//	새로운 영토의 군주는 mGeneral 이 되고, 
+		// 새로운 군주의 병사의 수 : 공격하고 남은 병사의 수
+		m.reset(idB, idG, res);
+		// mMonarchA의 동맹에 편입되며, 적대 관계는 mMonarchA 의 적대 관계와 동일하다
+		ah.ally(idA, idG);
+		//	공격 성공으로 1을 반환하고,
+		return 1;
+	}
+	//	방어하는 쪽의 병사가 남았거나, 모든 병사가 사망한 경우 0을 반환한다.
+	//  방어하는 군주의 병사의 수 : 방어하고 남은 병사의 수
+	else {
+		m.reset(idB, idB, res);
+		return 0;
+	}
+}
+
+int recruit(char mMonarch[11], int mNum, int mOption)
+{
+	//병사를 모집한다.
+	//	__Parameters
+	//	_____ mMonarch : 군주의 이름(4 ≤ 길이 ≤ 10)
+	//	_____ mNum : 병사의 수(1 ≤ mNum ≤ 200)
+	//	_____ mOption : 병사를 모집하는 조건
+	
+	//	mOption 이 0 일 때
+	//	-……….군주 mMonarch 의 영토에 mNum 명의 병사를 모집한다.
+	//	- ……….병사 모집 이후에 군주 mMonarch 영토의 병사의 수를 반환한다.
+	if (mOption == 0) {
+		int nn = m.recruit(idmap[mMonarch], mNum);
+		return nn;
+	}
+
+	//	mOption 이 1 일 때,
+	//	-……….군주 mMonarch 를 포함한 모든 동맹의 영토에 각각 mNum 명의 병사를 모집한다.
+	//	- ……….병사 모집 이후에 군주 mMonarch 동맹의 모든 병사의 수 합산하여 반환한다.
+	else {
+		int nn = m.recruitall(idmap[mMonarch], mNum);
+		return nn;
+	}
+
+	//	__Returns
+	//	_____병사의 수
+}
