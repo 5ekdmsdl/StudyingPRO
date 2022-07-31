@@ -1,0 +1,200 @@
+#include <unordered_map>
+#include <vector>
+#include <set>
+
+#define MXD 20001
+#define rint register int
+
+using namespace std;
+
+///////////////////////////////////////
+
+// map : struct(x,y,sz,id)
+
+struct ddata {
+	int x; int y; int sz; int id;
+
+	ddata() {
+		sz = 0; id = -1;
+	}
+
+	ddata(int _x, int _y, int _sz, int _id) {
+		x = _x; y = _y; sz = _sz; id = _id;
+	}
+};
+
+class map {
+public :
+	// 같은 위치에 다른 데이터 들어오면?
+	unordered_map<int, unordered_map<int, ddata>> table; // x -> y -> x y id sz
+
+	int isconn(int x, int y, int sz) {
+		for (auto itr = table.begin(); itr != table.end(); itr++) { // for x
+			int px = itr->second.begin()->first; // 현재 x
+			for (auto iitr = itr->second.begin(); iitr != itr->second.end(); iitr++) { // for y
+				int py = iitr->first; // 현재 y
+				
+				if (px - x < sz || py - y < sz) { // 연결되어있다면
+					return iitr->second.id;
+				}
+			}
+			
+		}
+		return -1;
+	}
+
+	void add(int r, int c, int sz, int id) {
+		table[r][c] = ddata(r,c, sz, id);
+	}
+
+};
+
+///////////////////////////////////////
+
+// db : idb, pdb
+
+class DB {
+public:
+	int icnt = 0;
+	unordered_map<int, int> idb; // id -> player
+	set<int> pdb[3]; // player -> id
+
+	int getid() {
+		return icnt++;
+	}
+
+	int add(int p) {
+		idb[icnt] = p;
+		pdb[p].insert(icnt);
+		icnt++;
+		return icnt-1;
+	}
+
+	int getd(int p) {
+		return pdb[p].size();
+	}
+
+	void changeholder(int hid, int p) {
+		idb[hid] = p;
+		
+		if (p == 1) { // 2로 바꾸기
+			pdb[1].erase(hid);
+			pdb[2].insert(hid);
+		}
+		else { // 1로 바구기
+			pdb[2].erase(hid);
+			pdb[1].insert(hid);
+		}
+	}
+};
+
+///////////////////////////////////////
+
+// uni : arr(id->hid)
+
+class Union {
+public :
+	int table[MXD];
+
+	Union() {
+		for (rint i = 0; i < MXD; i++) {
+			table[i] = -1;
+		}
+	}
+
+	void addnew(int id) {
+		table[id] = id;
+	}
+
+	void connwith(int id, int hid) {
+		table[id] = hid;
+	}
+};
+
+///////////////////////////////////////
+
+map m;
+DB db;
+Union uni;
+
+int N = 0; int M = 0;
+
+///////////////////////////////////////
+
+void init(int _N, int _M)
+{
+	//  각 테스트 케이스의 처음에 호출된다.
+	//	N 은 게임 판의 한 변의 길이이다.
+	//	M 은 딱지의 한 변의 길이의 최대 값이다.
+	//	N 은 10 의 배수로만 주어진다.
+	//	첫 번째 테스트 케이스를 제외하고, M 은 N / 10 으로 주어진다.
+	
+	//	Parameters
+	//	N : 게임 판의 한 변의 길이(10 ≤ N ≤ 100, 000, 000)
+	//	M : 딱지의 한 변의 길이의 최대 값(1≤ M ≤ 10, 000, 000)
+
+	N = _N; M = _M;
+
+	return;
+}
+
+int addDdakji(int mRow, int mCol, int mSize, int mPlayer)
+{
+	//	Parameters
+	//	mRow : 딱지의 왼쪽 위 모서리의 행 위치(0 ≤ mRow ≤ N – mSize)
+	//	mCol : 딱지의 왼쪽 위 모서리의 열 위치(0 ≤ mCol ≤ N - mSize)
+	//	mSize : 딱지의 한 변의 길이(1 ≤ mSize ≤ M)
+	//	mPlayer : 딱지를 추가한 플레이어.이 값은 1 또는 2 로만 주어진다.
+
+	//  (mRow, mCol) 좌표에 크기가 mSize 인 정사각형 모양의 딱지를 내려 놓는다.
+
+	// DB , map에 추가 -> id 할당
+	// DB : add()
+	int id = db.getid();
+	
+
+	// union에 추가
+	// 1. 연결되는 딱지 X -> 새로운 union 추가
+	// if(map : isconn() == -1)
+	// uni : newuni()
+	int hid = -99;
+	if (hid = m.isconn(mRow, mCol, mSize)) {
+		uni.addnew(id);
+	}
+
+	// 2. 기존 딱지와 연결 -> 기존 union에 연결
+	// if(map : hid = isconn())
+	// uni : connwith(hid)
+	else {
+		if (hid == -99) printf("error1");
+		uni.connwith(id, hid);
+		db.changeholder(hid, mPlayer);
+	}
+
+	m.add(mRow, mCol, mSize, id);
+
+	//	Returns
+	//	mPlayer 가 소유한 딱지의 개수
+	// return DB : getd(player)
+	return db.getd(mPlayer);
+}
+
+int check(int mRow, int mCol)
+{
+	//	Parameters
+	//	mRow : 질의로 들어온 격자의 행 위치(0 ≤ mRow ≤ N - 1)
+	//	mCol : 질의로 들어온 격자의 열 위치(0 ≤ mCol ≤ N - 1)
+	
+	// map : id = getid(R, C)
+
+	// 바닥의 mRow 행 mCol 열에 있는 격자를 덮고 있는 딱지를 소유한 플레이어를 반환한다. (1 or 2)
+	//	그 위치에 딱지가 없다면 0 을 반환한다.
+
+	// DB : p = getplayer(id) -> 0 / 1 / 2
+	// return p
+
+	//	Returns
+	//	바닥의 mRow 행 mCol 열에 있는 격자를 덮고 있는 딱지를 소유한 플레이어 반환
+
+	return 0;
+}
