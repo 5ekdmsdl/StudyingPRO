@@ -1,0 +1,103 @@
+#include <vector>
+#include <cstring>
+
+#define rint register int
+#define vint vector<int> 
+
+using namespace std;
+
+extern bool checkCards(int mIndexA, int mIndexB, int mDiff);
+
+/////////////////////////////////////////////////////////////
+
+void vmerge(vint* a, vint* b) {
+    for (auto i = b->begin(); i != b->end(); i++) {
+        a->push_back(*i);
+    }
+    return;
+}
+
+int gcnt = 0;
+vint grs[400001];
+
+bool done[100001];
+
+void setdone(int a, int b) {
+    done[a] = true; done[b] = true;
+}
+
+/////////////////////////////////////////////////////////////
+
+int ng(int g) {
+    return g * 0.7;
+}
+
+vint run(int gi, int g)
+{
+    vint rtl;
+
+    if (grs[gi].size() == 1) {
+        rtl.push_back(grs[gi][0]);
+        return rtl;
+    }
+
+    int gi1 = gcnt++; int gi2 = gcnt++;
+    vint* g1 = &grs[gi1];
+    vint* g2 = &grs[gi2];
+
+    int pi = 0;
+    for (rint i = pi + 1; i < grs[gi].size(); i++) {
+        bool res = checkCards(grs[gi][pi], grs[gi][i], g);
+        if (res) {
+            g1->push_back(grs[gi][i]);
+        }
+        else {
+            g2->push_back(grs[gi][i]);
+        }
+    }
+
+    if (!g1->empty()) {
+        vint rtl1 = run(gi1, ng(g));
+        if (!rtl1.empty() && !done[grs[gi][pi]]) {
+            for (auto rtv = rtl1.begin(); rtv != rtl1.end(); rtv++) {
+                if (checkCards(*rtv, grs[gi][pi], 0)) {
+                    setdone(*rtv, grs[gi][pi]);
+                    rtl1.erase(rtv);
+                    break;
+                }
+            }
+
+        }
+        vmerge(&rtl, &rtl1);
+    }
+    
+    if (!g2->empty()) {
+        vint rtl2 = run(gi2, ng(g));
+        if (!rtl2.empty() && !done[grs[gi][pi]]) {
+            for (auto rtv = rtl2.begin(); rtv != rtl2.end(); rtv++) {
+                if (checkCards(*rtv, grs[gi][pi], 0)) {
+                    setdone(*rtv, grs[gi][pi]);
+                    rtl2.erase(rtv);
+                    break;
+                }
+            }
+        }
+        vmerge(&rtl, &rtl2);
+    }
+
+    if (!done[grs[gi][pi]]) rtl.push_back(grs[gi][pi]);
+
+    return rtl;
+}
+
+void playGame(int N)
+{
+    for (rint i = 0; i < gcnt+10; i++) grs[i].clear();
+    gcnt = 0;
+
+    memset(done, false, sizeof(done));
+    vint gr;
+    for (rint i = 0; i < 2 * N; i++) gr.push_back(i);
+    grs[0] = gr;
+    run(gcnt++, ng(N));
+}
