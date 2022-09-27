@@ -1,0 +1,285 @@
+#include <unordered_map>
+#include <queue>
+#define pii pair<int, int>
+#define rint register int
+#define MP make_pair
+
+using namespace std;
+
+enum {
+	UP = 0,
+	RIGHT = 1,
+	DOWN = 2,
+	LEFT = 3,
+};
+
+struct IDX
+{
+	int x = -1;
+	int y = -1;
+	IDX() {
+		x = -1; y = -1;
+	}
+	IDX(int a, int b) {
+		x = a; y = b;
+	}
+	void setxy(IDX i) {
+		x = i.x; y = i.y;
+	}
+};
+
+struct RTV {
+	IDX idx();
+	int rot = 0; // 0~3
+	RTV() {
+		rot = 0;
+	}
+};
+
+struct PUZ {
+
+	int* ms;
+
+	PUZ(int* mp) {
+		ms = mp;
+	}
+};
+
+struct NODE
+{
+	int n;
+	IDX idx;
+	int rot;
+	int side;
+
+	NODE(int n, IDX idx, int rot, int side) {
+		this->n = n;
+		this->idx.setxy(idx);
+		this->rot = rot;
+		this->side = side;
+	}
+
+	/*bool operator>(NODE a) {
+		if (this->n == a.n) {
+			if (this->idx.x == a.idx.x) {
+				return (this->idx.y > a.idx.y);
+			}
+			return (this->idx.x > a.idx.x);
+		}
+		return (this->n > a.n);
+	}
+
+	bool operator<(NODE a) {
+		if (this->n == a.n) {
+			if (this->idx.x == a.idx.x) {
+				return (this->idx.y < a.idx.y);
+			}
+			return (this->idx.x < a.idx.x);
+		}
+		return (this->n < a.n);
+	}*/
+};
+
+struct cmp {
+	bool operator()(NODE b, NODE a) {
+		if (b.n == a.n) {
+			if (b.idx.x == a.idx.x) {
+				return (b.idx.y > a.idx.y);
+			}
+			return (b.idx.x > a.idx.x);
+		}
+		return (b.n < a.n);
+	}
+};
+
+int N; int M;
+int isum = 0;
+unordered_map<int, IDX> mapp[4]; // up right down left
+int pmapp[1000][1000][4];
+
+////////////////////////////////////////////////////////////////////
+
+int rotateM(int m) {
+	int tmp = 0;
+	for (rint i = 0; i < M; i++) {
+		tmp *= 10;
+		tmp += (m % 10);
+		m /= 10;
+	}
+	return tmp;
+}
+
+int getpair(int ms) {
+	return isum - rotateM(ms);
+}
+
+NODE search(int p[4]) {
+	priority_queue<NODE, vector<NODE>, cmp> pq;
+	unordered_map<int, int> nmap;
+
+	for (int side = 0; side < 4; side++) {
+		for (rint rot = 0; rot < 4; rot++) {
+			int pairr = getpair(p[rot]);
+
+			if (mapp[side].find(pairr) != mapp[side].end()) {
+				int tidx = (mapp[side][pairr].x * 1000) + mapp[side][pairr].y;
+				nmap[tidx];
+				nmap[tidx] += 1;
+
+				pq.push(NODE(nmap[tidx], mapp[side][pairr], rot, side)); // 횟수, idx, rot type
+			}
+		}
+	}
+	if (pq.empty()) {
+		return NODE(-1, IDX(), -1, -1);
+	}
+
+	int dx[4] = { 0,0,1,-1 };
+	int dy[4] = { 1,-1,0,0 };
+
+	while (!pq.empty()) {
+		NODE nd = pq.top(); pq.pop();
+		int cnt = 0;
+
+		/*if (pmapp[nd.idx.x][nd.idx.y]) {
+			printf("error1");
+		}*/
+
+		for (rint dir = 0; dir < 4; dir++) {
+			int nx = nd.idx.x + dx[dir];
+			int ny = nd.idx.y + dy[dir];
+
+			if ((0 <= nx <= N-1) && (0 <= ny <= N - 1) && pmapp[nx + 1][ny + 1][0] != 0)
+			{
+				cnt += 1;
+			}
+		}
+
+		if (cnt == nd.n) {
+			for (int j = 0; j < 4; j++) { // j = 
+				int tmp = (j + nd.rot - nd.side) % 4;
+				if (tmp < 0) tmp += 4;
+				pmapp[nd.idx.x + 1][nd.idx.y + 1][j] = p[tmp];
+			}
+			return nd;
+		}
+	}
+
+	return NODE(-1, IDX(), -1, -1);
+}
+
+void updatemap(IDX idx, int rot) {
+	// 기존 삭제, 신규 추가
+
+	idx.x += 1; idx.y += 1;
+
+	// 위 오 아래 왼
+	int dx[4] = { -1,0,1,0 };
+	int dy[4] = { 0,1,0,-1 };
+	int cnt = 0;
+
+	for (rint dir = 0; dir < 4; dir++) {
+		int x = idx.x; int y = idx.y;
+		int nx = idx.x + dx[dir];
+		int ny = idx.y + dy[dir];
+
+		if (nx < 0 || nx > N + 1 || ny < 0 || ny > N + 1) continue;
+		// 아래 위 오 왼
+		if (pmapp[nx][ny][0] != 0) { // 닿아있는
+			if (dir == UP) { 
+				mapp[UP].erase(pmapp[nx][ny][DOWN]);
+
+			}
+			else if (dir == RIGHT) { // 위
+				mapp[RIGHT].erase(pmapp[nx][ny][LEFT]);
+
+			}
+			else if (dir == DOWN) { // 오
+				mapp[DOWN].erase(pmapp[nx][ny][UP]);
+			}
+			else { // 왼
+				mapp[LEFT].erase(pmapp[nx][ny][RIGHT]);
+			}
+		}
+		else {// 아래 위 오 왼
+			if (dir == UP) { // ->
+				mapp[DOWN].insert(MP(pmapp[x][y][UP], IDX(x + dx[UP]-1, y + dy[UP] - 1)));
+			}
+			else if (dir == RIGHT) { // <-
+				mapp[LEFT].insert(MP(pmapp[x][y][RIGHT], IDX(x + dx[RIGHT] - 1, y + dy[RIGHT] - 1)));
+
+
+			}
+			else if (dir == DOWN) { // 아래
+				mapp[UP].insert(MP(pmapp[x][y][DOWN], IDX(x + dx[DOWN] - 1, y + dy[DOWN] - 1)));
+			}
+			else { // 위
+				mapp[RIGHT].insert(MP(pmapp[x][y][LEFT], IDX(x + dx[LEFT] - 1, y + dy[LEFT] - 1)));
+			}
+		}
+	}
+
+	return;
+}
+
+int add(IDX idx) {
+	return idx.x + idx.y + 2;
+}
+
+
+////////////////////////////////////////////////////////////////////
+
+void init(int _N, int _M, int mU[][4], int mR[][4], int mB[][4], int mL[][4])
+{
+	N = _N; M = _M;
+	isum = 1;
+	for (rint i = 0; i < 4; i++) {
+		mapp[i].clear();
+	}
+	for (rint i = 0; i < 1000; i++) {
+		for (rint j = 0; j < 1000; j++) {
+			for (rint ii = 0; ii < 4; ii++) {
+				pmapp[i][j][ii] = 0;
+			}
+		}
+	}
+	
+	for (rint i = 0; i < M; i++) isum = isum * 10 + 1;
+	isum -= 1;
+
+	for (rint i = 0; i < 4; i++) {
+		mapp[0].insert(make_pair(mU[i][2], IDX(0, i)));
+		mapp[1].insert(make_pair(mR[i][3], IDX(i, N - 1)));
+		mapp[2].insert(make_pair(mB[i][0], IDX(N - 1, i)));
+		mapp[3].insert(make_pair(mL[i][1], IDX(i, 0)));
+	}
+
+	for (rint i = 0; i < N; i++) {
+		for (rint j = 0; j < 4; j++) {
+			pmapp[0][i + 1][j] = mU[i][j];
+			pmapp[N + 1][i + 1][j] = mB[i][j];
+			pmapp[i + 1][0][j] = mL[i][j];
+			pmapp[i + 1][N + 1][j] = mR[i][j];
+		}
+	}
+
+	return;
+}
+
+void destroy()
+{
+}
+
+int put(int mPiece[4])
+{
+	NODE rtv = search(mPiece);
+
+	if (rtv.idx.x == -1) {
+		return -1;
+	}
+
+	updatemap(rtv.idx, rtv.rot);
+
+	return add(rtv.idx);
+
+}
