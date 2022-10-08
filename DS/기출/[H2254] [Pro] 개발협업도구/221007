@@ -1,0 +1,289 @@
+#include <vector>
+#include <string>
+#include <list>
+#include <queue>
+#define rint register int
+#define ull unsigned long long
+#define MAX 1024
+#define pii pair<int, int>
+
+using namespace std;
+
+///////////////////////////////////////////////////////
+
+ull encode(const char str[]) {
+	ull ret = 0;
+	for (rint i = 0; i < 10; i++) {
+		char c = str[i];
+		if (c == '\0') break;
+		ret = ret * 27 + (c - 'a' + 1);
+	}
+	return ret;
+}
+
+int decode(ull id, char rtl[]) {
+
+	int i = 0;
+	int cnt = 0;
+	int iid = id;
+
+	while (iid > 0) {
+		iid /= 27;
+		cnt++;
+	}
+
+	while (id > 0) {
+		char c = 'a' + (id % 27 - 1);
+		id /= 27;
+
+		rtl[cnt - i - 1] = c;
+		i++;
+	}
+
+	rtl[i] = '\0';
+
+	return cnt;
+}
+
+struct CONT
+{
+	string cname;
+
+
+	ull name;
+	ull cont;
+	int created;
+	int edited;
+
+	CONT(int t, ull n, ull d, const char cn[]) {
+		name = n;
+		cont = d;
+
+		created = t;
+		edited = t;
+
+		cname = cn;
+	}
+};
+
+priority_queue<pii> pq; // created, pointer
+
+struct ND
+{
+
+	string bname;
+
+
+	int bidx; // 행렬 idx
+	ull bid; // nd id
+
+
+	ull par;
+	vector<ull> sons;
+
+	vector<CONT> conts;
+
+	ND(int _bidx, ull _bid, ull _par, string bn) {
+		bidx = _bidx;
+		bid = _bid;
+		par = _par;
+
+		bname = bn;
+	}
+
+	void addcont(int mTime, const char file[], const char data[]) {
+		ull f = encode(file);
+		ull d = encode(data);
+		CONT tmp = CONT(mTime, f, d, file);
+
+		conts.push_back(tmp);
+
+		return;
+	}
+
+	void copycont(int time, CONT cont) {
+		conts.push_back(cont);
+	}
+
+	void clearconts() {
+
+		vector<pii> vtmp;
+
+		for (rint i = 0; i < conts.size(); i++) {
+			pq.push(make_pair(-conts[i].created, i));
+		}
+
+		for (rint i = 0; i < conts.size() - 50; i++) {
+			pq.pop();
+		}
+
+		while (!pq.empty())
+		{
+			vtmp.push_back(pq.top()); pq.pop();
+		}
+
+		return;
+	}
+};
+
+list<ND> ndarr[MAX];
+
+///////////////////////////////////////////////////////
+
+int getid(const char str[]) {
+	return encode(str) % 1024;
+}
+
+ND* getnd(const char str[]) {
+	ull bid = encode(str);
+
+	for (auto nd = ndarr[getid(str)].begin(); nd != ndarr[getid(str)].end(); nd++)
+	{
+		if (nd->bid == bid) {
+			return &(*nd);
+		}
+	}
+}
+
+ND* getnd(ull bid) {
+
+	for (auto nd = ndarr[bid % MAX].begin(); nd != ndarr[bid % MAX].end(); nd++)
+	{
+		if (nd->bid == bid) {
+			return &(*nd);
+		}
+	}
+}
+
+void newnode(const char str[], ull par) {
+
+	ndarr[getid(str)].push_back(ND(getid(str), encode(str), par, str));
+
+	if (par != -1) {
+		for (auto nd = ndarr[par % MAX].begin(); nd != ndarr[par % MAX].end(); nd++) {
+			if (nd->bid == par) {
+				nd->sons.push_back(encode(str));
+			}
+		}
+	}
+}
+
+void deletenodewithPar(ND* cnd, ND* pnd) {
+
+	for (auto son = pnd->sons.begin(); son != pnd->sons.end(); son++)
+	{
+		if (*son == cnd->bid) {
+			pnd->sons.erase(son);
+			break;
+		}
+	}
+}
+
+///////////////////////////////////////////////////////
+
+void init() {
+	for (rint i = 0; i < MAX; i++) ndarr[i].clear();
+
+	newnode("root", -1);
+	return;
+}
+
+void create(int mTime, char mBranch[], char mFile[], char mData[]) {
+	ND* nd = getnd(mBranch);
+
+	nd->addcont(mTime, mFile, mData);
+
+	return;
+}
+
+void edit(int mTime, char mBranch[], char mFile[], char mData[]) {
+	ND* nd = getnd(mBranch);
+
+	for (auto cont = nd->conts.begin(); cont != nd->conts.end(); cont++) {
+		if (cont->name == encode(mFile)) {
+			cont->cont = encode(mData);
+
+			cont->edited = mTime;
+
+			break;
+		}
+	}
+
+	//return;
+}
+
+void branch(int mTime, char mBranch[], char mChild[]) {
+
+	ND* pnd = getnd(mBranch);
+
+	newnode(mChild, pnd->bid);
+	ND* cnd = getnd(mChild);
+
+	for (auto cont : pnd->conts) {
+		cnd->copycont(mTime, cont);
+	}
+
+	return;
+}
+
+void merge(int mTime, ull branch) {
+
+	ND* cnd = getnd(branch);
+	ND* pnd = getnd(cnd->par);
+	bool found = false;
+
+	if (!cnd->sons.empty()) { // cnd 자식 없는 경우
+		for (auto son = cnd->sons.begin(); son != cnd->sons.end(); son++) {
+			merge(mTime, *son);
+		}
+	}
+
+	for (auto cont = cnd->conts.begin(); cont != cnd->conts.end(); cont++) {
+		found = false;
+
+		for (auto pcont = pnd->conts.begin(); pcont != pnd->conts.end(); pcont++) {
+			if (cont->name == pcont->name) {
+				found = true;
+				if (cont->created == pcont->created && cont->edited > pcont->edited) {
+					*pcont = *cont;
+				}
+			}
+		}
+
+		if (!found) pnd->copycont(mTime, *cont);
+	}
+	if (pnd->conts.size() > 50) {
+		pnd->clearconts();
+	}
+}
+
+void merge(int mTime, char mBranch[]) {
+
+	merge(mTime, encode(mBranch));
+
+	ND* cnd = getnd(mBranch);
+	ND* pnd = getnd(cnd->par);
+	deletenodewithPar(cnd, pnd);
+
+	return;
+}
+
+int readfile(int mTime, char mBranch[], char mFile[], char retString[]) {
+
+	ND* nd = getnd(mBranch);
+	int rtv = 0;
+
+	for (auto cont = nd->conts.begin(); cont != nd->conts.end(); cont++) {
+		if (cont->name == encode(mFile)) {
+
+			rtv = decode(cont->cont, retString);
+			break;
+		}
+	}
+
+	if (rtv == 0) {
+		int a = 0;
+	}
+
+	return rtv;
+}
