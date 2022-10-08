@@ -1,0 +1,119 @@
+#include <queue>
+#define ii pair<int, int>
+#define MAXH 33000
+#define MAXSZ 11010
+#define DEAD -1
+#define EMPTY -2
+
+using namespace std;
+
+////////////////////////////////////////////
+
+priority_queue<ii, vector<ii>, greater<ii>> events;
+int total[6];
+int htab[MAXH];
+int scnt = 0;
+
+int ranknode[MAXSZ];
+int parent[MAXSZ];
+int deadtime[MAXSZ];
+int population[MAXSZ][6]; // root의 길이 별 갯수
+
+////////////////////////////////////////////
+
+int getroot(int node) {
+    while (parent[node] != -1) {
+        node = parent[node];
+    }
+    return node;
+}
+
+void update(int t) {
+    while (!events.empty() && events.top().first <= t) {
+        
+        ii top = events.top(); events.pop();
+        int root = getroot(top.second);
+
+        if (deadtime[root] == top.first) { // 유효한 root라면 kill
+            deadtime[root] = DEAD;
+            for (int i = 0; i < 6; i++) {
+                total[i] -= population[root][i];
+            }
+        }
+    }
+}
+
+////////////////////////////////////////////
+
+void init(int N)
+{
+    // (5 ≤ N ≤ 10)
+    while (!events.empty()) events.pop();
+    for (int i = 0; i < 6; i++) total[i] = 0;
+    for (int i = 0; i < MAXH; i++) htab[i] = EMPTY;
+    scnt = 0;
+    
+    return;
+}
+
+int generateString(int mTimestamp, int mLifespan, int mLen, char mStr[])
+{
+    //    해당 시각에 소멸되는 문자열들은 먼저 소멸
+    //    priq top -> hid -> hid2id -> ids -> db value = 0 & alive remove
+    update(mTimestamp);
+
+    //    문자열은 mStr 배열로 주어지며, 길이는 mLen, 수명은 mLifespan이다.
+    //    문자열은 영문 소문자로만 이루어져 있으며 ‘＼0’으로 끝난다.
+    //    db add & alive add
+    int deadT = mTimestamp + mLifespan;
+
+    for (int i = 0; i < 6; i++) {
+        population[scnt][i] = 0;
+    }
+    population[scnt][mLen - 5] = 1;
+
+
+
+
+    //    이전에 주어진 문자열과 동일한 문자열이 주어질 수 있으나 이는 별도의 문자열로 간주된다.
+    //    ??
+
+    //    생성된 문자열은 규칙에 따라 친구들을 찾은 후, 
+    //    for 3 letter : search mixs
+    //    1. get hid : update union & hid2id (get head)
+    //    2. new mix : add in mixs (hid = id)
+    
+    //    찾은 친구들의 친구들도 모두 친구로 만든다.
+    //    그리고, 친구가 된 문자열들의 소멸 시각을 자신의 소멸 시각과 동일하도록 변경시켜 준다.
+    
+
+    //    Parameters
+    //    mTimestamp : 함수가 호출되는 시각(1 ≤ mTimestamp ≤ 100, 000)
+    //    mLifespan : 문자열의 수명(1 ≤ mLifespan ≤ 20)
+    //    mLen : 생성되는 문자열의 길이(5 ≤ mLen ≤ N)
+    //    mStr : 생성되는 문자열
+
+
+    //    Return
+    //    길이가 mLen인 살아있는 문자열의 개수
+
+    return -1;
+}
+
+int checkString(int mTimestamp, int mLen)
+{
+    //    해당 시각에 소멸되는 문자열들은 먼저 소멸 시킨 후 개수를 계산한다.
+
+
+    //    mTimestamp 시각에 길이가 mLen인 살아있는 문자열의 개수를 반환한다.
+
+
+    //    Parameters
+    //    mTimestamp : 함수가 호출되는 시각(1 ≤ mTimestamp ≤ 100, 000)
+    //    mLen : 확인할 문자열들의 길이(5 ≤ mLen ≤ N)
+
+    //    Return
+    //    길이가 mLen인 살아있는 문자열의 개수
+
+    return -1;
+}
